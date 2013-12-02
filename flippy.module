@@ -27,6 +27,7 @@ function flippy_theme() {
  */
 function flippy_form_node_type_edit_form_alter(&$form, $form_state) {
   if (isset($form['type'])) {
+
     // flippy settings
     $flippy_node_type      = \Drupal::config('flippy.settings')->get('flippy_' . $form['type']['#default_value']);
     $flippy_head           = \Drupal::config('flippy.settings')->get('flippy_head_' . $form['type']['#default_value']);
@@ -611,107 +612,6 @@ function template_preprocess_flippy(&$vars) {
 }
 
 /**
- * Implements hook_block_info().
- */
-function flippy_block_info() {
-  $blocks = array();
-
-  // Provide a pager block that will work for all node types
-  $blocks['flippy_pager'] = array(
-    'info' => t('Flippy Pager (all node types)'),
-    'cache' => DRUPAL_NO_CACHE
-  );
-
-  // Provide node-type specific pager blocks
-  foreach (node_type_get_types() as $type) {
-    // See if this node type has pagers enabled
-    if (variable_get("flippy_{$type->type}", FALSE)) {
-      // Add support for machine names > 32 chars
-      if (strlen("flippy_pager-node_type-{$type->type}") > 32) {
-        $delta = flippy_block_hash_delta($type->type);
-      }
-      else {
-        $delta = "flippy_pager-node_type-{$type->type}";
-      }
-      $blocks[$delta] = array(
-        'info' => t('Flippy Pager (@type nodes)', array('@type' => $type->name)),
-        'cache' => DRUPAL_NO_CACHE
-      );
-    }
-  }
-
-  return $blocks;
-}
-
-/**
- * Implements hook_block_view().
- */
-function flippy_block_view($delta = '') {
-  if (substr($delta, 0, 12) == 'flippy_pager') {
-    return flippy_pager_block($delta);
-  }
-  return NULL;
-}
-
-/**
- * function to return a hash for deltas longer than 32 characters
- */
-function flippy_block_hash_delta($delta) {
-  return 'flippy_pager-node_type-' . substr(drupal_hash_base64($delta), 0, 9);
-}
-
-/**
- * Render the Flippy pager block.
- *
- * @param $delta
- *   The delta passed into hook_block_view(). This will specify whether
- *   or not we this block should render a pager for all enabled node types
- *   or just the specific type requested.
- *
- * @return A renderable block array.
- */
-function flippy_pager_block($delta = '') {
-  // Detect if this pager should be for all nodes or just a given type
-  if (strstr($delta, 'flippy_pager-node_type-')) {
-    $type = str_replace('flippy_pager-node_type-', '', $delta);
-    // If $type isn't a content type we know it was hashed so must rehash to find the type
-    $types = node_type_get_names();
-    if (!array_key_exists($type, $types)) {
-      foreach ($types as $machine => $name) {
-        $hash = flippy_block_hash_delta($machine);
-        if ($delta == $hash) {
-          $type = $machine;
-        }
-      }
-    }
-  }
-  else {
-    $type = NULL;
-  }
-
-  // Detect if we're viewing a node
-  if ($node = menu_get_object('node')) {
-    // See if this node matches the type requested
-    if (!$type || ($type == $node->type)) {
-      // Make sure this node type is still enabled
-      if (_flippy_use_pager($node)) {
-        // Generate the block
-        $block = array(
-          'subject' => NULL,
-          'content' => theme('flippy', array('list' => flippy_build_list($node))),
-        );
-        // Set head elements
-        _flippy_add_head_elements($node);
-
-        return $block;
-      }
-    }
-  }
-
-  return NULL;
-}
-
-/**
  * Determine if the Flippy pager should be shown for the give node.
  *
  * @param $node
@@ -735,7 +635,7 @@ function _flippy_use_pager($node) {
  */
 function _flippy_add_head_elements($node) {
   if (is_object($node)) {
-    if (variable_get('flippy_head_' . $node->type, NULL)) {
+    if (\Drupal::config('flippy.settings')->get('flippy_head_' . $node->getType())) {
       $links = flippy_build_list($node);
       if (!empty($links['prev'])) {
         drupal_add_html_head_link(array(

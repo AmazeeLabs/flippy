@@ -6,12 +6,22 @@
  */
 
 /**
- * Remove the internal caching feature, as Views now supports caching of query results.
+ * Converts flippy variable to config.
+ *
+ * @ingroup config_upgrade
  */
-function flippy_uninstall() {
-  // We should delete variables and stuff and things.
-  db_delete('variable')
-    ->condition('name', db_like('flippy_') . '%', 'LIKE')
+function flippy_update_8000() {
+  // Find out all flippy variables in Drupal 7
+  $query = db_select('variable', 'v')
+    ->condition('name', db_like('flippy_' . '%', 'LIKE'))
+    ->fields('v', array('name'))
     ->execute();
-  cache_clear_all('variables', 'cache_bootstrap');
+
+  // Create the map between Drupal 7 and Drupal 8
+  $map = array();
+  foreach($query->fetchAssoc() as $result) {
+    $map[] = array($result['name'] => $result['name']);
+  }
+  // Update the variables
+  update_variables_to_config('flippy.settings', $map);
 }
