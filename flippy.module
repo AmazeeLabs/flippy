@@ -39,12 +39,12 @@ function flippy_form_node_type_edit_form_alter(&$form, $form_state) {
     $flippy_last_label     = \Drupal::config('flippy.settings')->get('flippy_last_label_' . $form['type']['#default_value']);
     $flippy_loop           = \Drupal::config('flippy.settings')->get('flippy_loop_' . $form['type']['#default_value']);
     $flippy_random         = \Drupal::config('flippy.settings')->get('flippy_random_' . $form['type']['#default_value']);
-    $flippy_random_label   = \Drupal::config('flippy.settings')->get('flippy_random_label' . $form['type']['#default_value']);
-    $flippy_truncate       = \Drupal::config('flippy.settings')->get('flippy_truncate' . $form['type']['#default_value']);
-    $flippy_ellipse        = \Drupal::config('flippy.settings')->get('flippy_ellipse' . $form['type']['#default_value']);
-    $flippy_custom_sorting = \Drupal::config('flippy.settings')->get('flippy_custom_sorting' . $form['type']['#default_value']);
-    $flippy_sort           = \Drupal::config('flippy.settings')->get('flippy_sort' . $form['type']['#default_value']);
-    $flippy_order          = \Drupal::config('flippy.settings')->get('flippy_order' . $form['type']['#default_value']);
+    $flippy_random_label   = \Drupal::config('flippy.settings')->get('flippy_random_label_' . $form['type']['#default_value']);
+    $flippy_truncate       = \Drupal::config('flippy.settings')->get('flippy_truncate_' . $form['type']['#default_value']);
+    $flippy_ellipse        = \Drupal::config('flippy.settings')->get('flippy_ellipse_' . $form['type']['#default_value']);
+    $flippy_custom_sorting = \Drupal::config('flippy.settings')->get('flippy_custom_sorting_' . $form['type']['#default_value']);
+    $flippy_sort           = \Drupal::config('flippy.settings')->get('flippy_sort_' . $form['type']['#default_value']);
+    $flippy_order          = \Drupal::config('flippy.settings')->get('flippy_order_' . $form['type']['#default_value']);
 
     $form['flippy'] = array(
       '#type' => 'details',
@@ -310,7 +310,7 @@ function _flippy_node_type_form_submit($form, $form_state) {
     ->set('flippy_random_' . $form['type']['#default_value'], $form_state['values']['flippy_random'])
     ->set('flippy_random_label_' . $form['type']['#default_value'], $form_state['values']['flippy_random_label'])
     ->set('flippy_truncate_' . $form['type']['#default_value'], $form_state['values']['flippy_truncate'])
-    ->set('flippy_ellipse' . $form['type']['#default_value'], $form_state['values']['flippy_ellipse'])
+    ->set('flippy_ellipse_' . $form['type']['#default_value'], $form_state['values']['flippy_ellipse'])
     ->set('flippy_custom_sorting_' . $form['type']['#default_value'], $form_state['values']['flippy_custom_sorting'])
     ->set('flippy_sort_' . $form['type']['#default_value'], $form_state['values']['flippy_sort'])
     ->set('flippy_order_' . $form['type']['#default_value'], $form_state['values']['flippy_order'])
@@ -359,17 +359,20 @@ function flippy_node_view($node, $view_mode = 'full') {
  *  Function that builds the list of nodes
  */
 function flippy_build_list($node) {
+  // Get all the properties from the current node
+  $propertyValues = $node->getPropertyValues();
+
   $master_list = &drupal_static(__FUNCTION__);
   if (!isset($master_list)) {
     $master_list = array();
   }
   if (!isset($master_list[$node->id()])) {
     // Check to see if we need custom sorting
-    if (\Drupal::config('flippy.settings')->get('flippy_custom_sorting_' . $node->getType())) {
+    if (\Drupal::config('flippy.settings')->get('flippy_custom_sorting_' . $propertyValues['type'][0]['value'])) {
       // Get order
-      $order = \Drupal::config('flippy.settings')->get('flippy_order_' . $node->getType());
+      $order = \Drupal::config('flippy.settings')->get('flippy_order_' . $propertyValues['type'][0]['value']);
       // Get sort
-      $sort = \Drupal::config('flippy.settings')->get('flippy_sort_' . $node->getType());
+      $sort = \Drupal::config('flippy.settings')->get('flippy_sort_' . $propertyValues['type'][0]['value']);
     }
     else {
       $order = 'ASC';
@@ -382,15 +385,15 @@ function flippy_build_list($node) {
     // we assume it's a field
     if (!in_array($sort, $base_table_properties)) {
       // get the value of the current node's field (use the first one only)
-      $current_field_items = $node->getTranslation(NULL)->{$sort};
-      if (!isset($current_field_items[0]['value'])) {
+      $current_field_items = $node->{$sort}->getValue();
+      if (!isset($current_field_items[0]['target_id'])) {
         // should never happen, but just in case, fall back to post date ascending
         $sort  = 'created';
         $order = 'ASC';
       }
       else {
         // Otherwise save the field value for later
-        $field_value = $current_field_items[0]['value'];
+        $field_value = $current_field_items[0]['target_id'];
       }
     }
     // Depending on order, decide what before and after means
@@ -399,12 +402,15 @@ function flippy_build_list($node) {
     // Also decide what up and down means
     $up   = ($order == 'ASC') ? 'ASC' : 'DESC';
     $down = ($order == 'ASC') ? 'DESC' : 'ASC';
-    // Create a starting-point EntityQuery object
+    // Create a starting-point SelectQuery object
+    // todo: convert the SelectQuery into EntityQuery when D8 EntityQuery start
+    // todo: to support nested conditions.
     //$language = new Language();
-    $query = \Drupal::entityQuery('node');
-    $query->condition('type', $node->getType())
-      ->condition('status', 1)
-      ->condition('nid', $node->id(), '!=')
+    $query = db_select('node_field_data', 'nfd');
+    $query->fields('nfd', array('nid'))
+      ->condition('nfd.type', $propertyValues['type'][0]['value'])
+      ->condition('nfd.status', 1)
+      ->condition('nfd.nid', $propertyValues['nid'][0]['value'], '!=')
       //->condition('langcode', array($language::LANGCODE_DEFAULT, $language::LANGCODE_NOT_SPECIFIED), 'IN')
       ->range(0, 1)
       ->addTag('node_access');
@@ -419,36 +425,81 @@ function flippy_build_list($node) {
     // If we found a field value earlier, we know we're dealing with a field
     if ($field_value) {
       // set the conditions
-      $first->condition($sort . 'value', $field_value, $before);
-      $prev->condition($sort . 'value', $field_value, $before);
-      $next->condition($sort . 'value', $field_value, $after);
-      $last->condition($sort . 'value', $field_value, $after);
+
+      // change sort format to match new table name in D8
+      $sort = str_replace('field_', '', $sort);
+
+      // first and last query
+      $first->join('node__field_' . $sort, $sort, 'nfd.nid = ' . $sort . '.entity_id');
+      $first->condition($sort . '.field_' . $sort . '_target_id', $field_value, $before);
+      $last->join('node__field_' . $sort, $sort, 'nfd.nid = ' . $sort . '.entity_id');
+      $last->condition($sort . '.field_' . $sort . '_target_id', $field_value, $after);
+
+      // previous query to find out the previous item based on the field, using
+      // node id if the other criteria is the same.
+      $prev->join('node__field_' . $sort, $sort, 'nfd.nid = ' . $sort . '.entity_id');
+      $prev->condition(db_or()
+        ->condition($sort . '.field_' . $sort . '_target_id', $field_value, $before)
+        ->condition(db_and()
+          ->condition($sort . '.field_' . $sort . '_target_id', $field_value, '=')
+          ->condition('nid', $propertyValues['nid'][0]['value'], $before)
+        )
+      );
+      $next->join('node__field_' . $sort, $sort, 'nfd.nid = ' . $sort . '.entity_id');
+      $next->condition(db_or()
+        ->condition($sort . '.field_' . $sort . '_target_id', $field_value, $after)
+        ->condition(db_and()
+          ->condition($sort . '.field_' . $sort . '_target_id', $field_value, '=')
+          ->condition('nid', $propertyValues['nid'][0]['value'], $after)
+        )
+      );
+
       // set the ordering
-      $first->sort($sort, $up);
-      $prev->sort($sort, $down);
-      $next->sort($sort, $up);
-      $last->sort($sort, $down);
+      $first->orderBy($sort . '.field_' . $sort . '_target_id', $up);
+      $prev->orderBy($sort . '.field_' . $sort . '_target_id', $down);
+      $next->orderBy($sort . '.field_' . $sort . '_target_id', $up);
+      $last->orderBy($sort . '.field_' . $sort . '_target_id', $down);
     }
     else {
       // Otherwise we assume the variable is a column in the base table
       // (a property). Like above, set the conditions
-      $propertyValues = $node->getPropertyValues();
+
+      // first and last query
       $first->condition($sort, $propertyValues[$sort][0]['value'], $before);
-      $prev->condition($sort, $propertyValues[$sort][0]['value'], $before);
-      $next->condition($sort, $propertyValues[$sort][0]['value'], $after);
       $last->condition($sort, $propertyValues[$sort][0]['value'], $after);
+
+      // previous query to find out the previous item based on the field, using
+      // node id if the other criteria is the same.
+      $prev->condition(db_or()
+        ->condition($sort, $propertyValues[$sort][0]['value'], $before)
+        ->condition(db_and()
+          ->condition($sort, $propertyValues[$sort][0]['value'], '=')
+          ->condition('nid', $propertyValues['nid'][0]['value'], $before)
+        )
+      );
+
+      // next query to find out the next item based on the field, using
+      // node id if the other criteria is the same.
+      $next->condition(db_or()
+        ->condition($sort, $propertyValues[$sort][0]['value'], $after)
+        ->condition(db_and()
+          ->condition($sort, $propertyValues[$sort][0]['value'], '=')
+          ->condition('nid', $propertyValues['nid'][0]['value'], $after)
+        )
+      );
+
       // set the ordering
-      $first->sort($sort, $up);
-      $prev->sort($sort, $down);
-      $next->sort($sort, $up);
-      $last->sort($sort, $down);
+      $first->orderBy($sort, $up);
+      $prev->orderBy($sort, $down);
+      $next->orderBy($sort, $up);
+      $last->orderBy($sort, $down);
     }
     // Execute the queries
     $results = array();
-    $results['first'] = $first->execute();
-    $results['prev']  = $prev->execute();
-    $results['next']  = $next->execute();
-    $results['last']  = $last->execute();
+    $results['first'] = $first->execute()->fetchField();
+    $results['prev']  = $prev->execute()->fetchField();
+    $results['next']  = $next->execute()->fetchField();
+    $results['last']  = $last->execute()->fetchField();
 
     $node_ids = array();
     foreach ($results as $key => $result) {
@@ -456,8 +507,7 @@ function flippy_build_list($node) {
       // at the beginning/end of the pager, so ignore those
       if (count($result) > 0) {
         // otherwise we save the node ID
-        $result_nids = array_keys($results[$key]);
-        $node_ids[$key] = $result_nids[0];
+        $node_ids[$key] = $results[$key];
       }
     }
     // make our final array of node IDs and titles
@@ -465,55 +515,45 @@ function flippy_build_list($node) {
     // but only if we actually found some matches
     if (count($node_ids) > 0) {
       // we also need titles to go with our node ids
-      $title_query = db_select('node_field_data', 'n')
-        ->fields('n', array('title', 'nid'))
-        ->condition('n.nid', $node_ids, 'IN')
+      $title_query = db_select('node_field_data', 'nfd')
+        ->fields('nfd', array('title', 'nid'))
+        ->condition('nfd.nid', $node_ids, 'IN')
         ->execute()
         ->fetchAllAssoc('nid');
 
       foreach ($node_ids as $key => $nid) {
         $list[$key] = array(
           'nid' => $nid,
-          'title' => $title_query[$nid]->title,
+          'title' => isset($title_query[$nid]) ? $title_query[$nid]->title : '',
         );
       }
     }
     // create random list
-    if (\Drupal::config('flippy.settings')->get('flippy_random_' . $node->getType())) {
+    if (\Drupal::config('flippy.settings')->get('flippy_random_' . $propertyValues['type'][0]['value'])) {
+      $random->orderRandom();
+      $random_nid = $random->execute()->fetchField();
 
-      $random->addTag('random');
-      $result = $random->execute();
-
-      if (isset($result)) {
-        $nids = array_keys($result);
-        foreach($nids as $nid) {
-          $node = node_load($nid);
-          $title = $node->title;
-          $list['random'] = array(
-            'nid' => $nid,
-            'title' => $title,
-          );
-        }
-      }
-
+      // find out the node title
+      $title = db_select('node_field_data', 'nfd')
+        ->fields('nfd', array('title'))
+        ->condition('nfd.nid', $random_nid, '=')
+        ->execute()
+        ->fetchField();
+      $list['random'] = array(
+        'nid' => $random_nid,
+        'title' => $title
+      );
     }
     // finally set the current info for themers to use
 
     $list['current'] = array(
-      'nid' => $node->id(),
-      'title' => $node->getTitle(),
+      'nid' => $propertyValues['nid'][0]['value'],
+      'title' => $propertyValues['title'][0]['value'],
     );
 
-    $master_list[$node->id()] = $list;
+    $master_list[$propertyValues['nid'][0]['value']] = $list;
   }
-  return $master_list[$node->id()];
-}
-
-/**
- * Implement hook_query_TAG_alter()
- */
-function flippy_query_random_alter($query){
-  $query->orderRandom();
+  return $master_list[$propertyValues['nid'][0]['value']];
 }
 
 /**
@@ -559,15 +599,16 @@ function template_preprocess_flippy(&$vars) {
 
   // Build the variables for twig
   if ($nav = $vars['list']) {
+
     if (\Drupal::config('flippy.settings')->get('flippy_first_last_' . $vars['node']->getType()) != NULL) {
-      if (isset($nav['first'])) {
+      if (isset($nav['first']) && $nav['first']['nid'] != '') {
         $vars['first'] = l($first_label, 'node/' . $nav['first']['nid']);
       }
       elseif ($show_empty) {
         $vars['first'] = $first_label;
       }
 
-      if (isset($nav['last'])) {
+      if (isset($nav['last']) && $nav['last']['nid'] != '') {
         $vars['last'] = l($last_label, 'node/' . $nav['last']['nid']);
       }
       elseif ($show_empty) {
@@ -578,18 +619,15 @@ function template_preprocess_flippy(&$vars) {
     if (\Drupal::config('flippy.settings')->get('flippy_random_'. $vars['node']->getType())) {
       $vars['random'] = l($random_label, 'node/' . $nav['random']['nid']);
     }
-    else {
-      $vars['random'] = '';
-    }
 
-    if ($nav['prev']) {
+    if (isset($nav['prev']) && $nav['prev']['nid'] != '') {
       $vars['prev'] = l($prev_label, 'node/' . $nav['prev']['nid']);
     }
     elseif ($show_empty) {
       $vars['prev'] = t($prev_label);
     }
 
-    if ($nav['next']) {
+    if (isset($nav['next']) && $nav['next']['nid'] != '') {
       $vars['next'] = l($next_label, 'node/' . $nav['next']['nid']);
     }
     elseif ($show_empty) {
