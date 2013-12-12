@@ -241,7 +241,7 @@ function flippy_form_node_type_edit_form_alter(&$form, $form_state) {
     $content_type_fields = $field::fieldInfo()->getBundleInstances('node', $form['type']['#default_value']);
     foreach ($content_type_fields as $sort_field) {
       $field_info = $field::fieldInfo()->getField('node', $sort_field->getFieldName());
-      if ($field_info->status()) {
+      if ($field_info->status() && !isset($field_info->indexes['target_id'])) {
         // only allow fields that have a 'value' column
         $sort_options[$sort_field->getFieldName()] = $sort_field->label();
       }
@@ -386,14 +386,14 @@ function flippy_build_list($node) {
     if (!in_array($sort, $base_table_properties)) {
       // get the value of the current node's field (use the first one only)
       $current_field_items = $node->{$sort}->getValue();
-      if (!isset($current_field_items[0]['target_id'])) {
+      if (!isset($current_field_items[0]['value'])) {
         // should never happen, but just in case, fall back to post date ascending
         $sort  = 'created';
         $order = 'ASC';
       }
       else {
         // Otherwise save the field value for later
-        $field_value = $current_field_items[0]['target_id'];
+        $field_value = $current_field_items[0]['value'];
       }
     }
     // Depending on order, decide what before and after means
@@ -431,34 +431,34 @@ function flippy_build_list($node) {
 
       // first and last query
       $first->join('node__field_' . $sort, $sort, 'nfd.nid = ' . $sort . '.entity_id');
-      $first->condition($sort . '.field_' . $sort . '_target_id', $field_value, $before);
+      $first->condition($sort . '.field_' . $sort . '_value', $field_value, $before);
       $last->join('node__field_' . $sort, $sort, 'nfd.nid = ' . $sort . '.entity_id');
-      $last->condition($sort . '.field_' . $sort . '_target_id', $field_value, $after);
+      $last->condition($sort . '.field_' . $sort . '_value', $field_value, $after);
 
       // previous query to find out the previous item based on the field, using
       // node id if the other criteria is the same.
       $prev->join('node__field_' . $sort, $sort, 'nfd.nid = ' . $sort . '.entity_id');
       $prev->condition(db_or()
-        ->condition($sort . '.field_' . $sort . '_target_id', $field_value, $before)
+        ->condition($sort . '.field_' . $sort . '_value', $field_value, $before)
         ->condition(db_and()
-          ->condition($sort . '.field_' . $sort . '_target_id', $field_value, '=')
+          ->condition($sort . '.field_' . $sort . '_value', $field_value, '=')
           ->condition('nid', $propertyValues['nid'][0]['value'], $before)
         )
       );
       $next->join('node__field_' . $sort, $sort, 'nfd.nid = ' . $sort . '.entity_id');
       $next->condition(db_or()
-        ->condition($sort . '.field_' . $sort . '_target_id', $field_value, $after)
+        ->condition($sort . '.field_' . $sort . '_value', $field_value, $after)
         ->condition(db_and()
-          ->condition($sort . '.field_' . $sort . '_target_id', $field_value, '=')
+          ->condition($sort . '.field_' . $sort . '_value', $field_value, '=')
           ->condition('nid', $propertyValues['nid'][0]['value'], $after)
         )
       );
 
       // set the ordering
-      $first->orderBy($sort . '.field_' . $sort . '_target_id', $up);
-      $prev->orderBy($sort . '.field_' . $sort . '_target_id', $down);
-      $next->orderBy($sort . '.field_' . $sort . '_target_id', $up);
-      $last->orderBy($sort . '.field_' . $sort . '_target_id', $down);
+      $first->orderBy($sort . '.field_' . $sort . '_value', $up);
+      $prev->orderBy($sort . '.field_' . $sort . '_value', $down);
+      $next->orderBy($sort . '.field_' . $sort . '_value', $up);
+      $last->orderBy($sort . '.field_' . $sort . '_value', $down);
     }
     else {
       // Otherwise we assume the variable is a column in the base table
