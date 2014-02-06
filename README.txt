@@ -21,9 +21,28 @@ Flippy started out as a quick and dirty port of Custom Pagers module to Drupal 7
 but quickly spiraled into an over-engineered pile of wacky. It was gutted and
 now it's very simple. It might get more features later.
 
+USAGE
+
+- Go to /admin/modules and enable Flippy module.
+- Go to /admin/structure/types, edit the content type that you want to have flippy enabled.
+- tick 'Build a pager for this content type' checkbox in 'Flippy settings' tab.
+- Select advanced options.
+  - Whether to add semantic previous and next links to the document HEAD.
+  - Whether to show empty links. For example, if there is no "next" node, the "next" label will be shown but without a link.
+  - Input the label you want to display for the links. You can use token to display element of node.
+  - Whether to display first/last links. Will ask you to input the label if you tick the checkbox.
+  - Whether to loop through the nodes, there won't be first and last node.
+  - Whether to show the random link. Label is needed if checked.
+  - Set up 'Truncate label length'. Long text will be truncated.
+  - Set up 'Truncate ellipse'.
+  - Sort by other fields.
+    - If checked, choose the field for sorting the pager.
+    - Select pager order.
+  - Click the save content type button to save the settings.
+
 REQUIREMENTS
 
-- Drupal 7
+- Drupal 8
 - token module
 
 AUTHOR

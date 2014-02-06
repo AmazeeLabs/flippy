@@ -240,10 +240,10 @@ function flippy_form_node_type_edit_form_alter(&$form, $form_state) {
     $field = new Field();
     $content_type_fields = $field::fieldInfo()->getBundleInstances('node', $form['type']['#default_value']);
     foreach ($content_type_fields as $sort_field) {
-      $field_info = $field::fieldInfo()->getField('node', $sort_field->getFieldName());
+      $field_info = $field::fieldInfo()->getField('node', $sort_field->getName());
       if ($field_info->status() && !isset($field_info->indexes['target_id'])) {
         // only allow fields that have a 'value' column
-        $sort_options[$sort_field->getFieldName()] = $sort_field->label();
+        $sort_options[$sort_field->getName()] = $sort_field->label();
       }
     }
 
@@ -346,8 +346,13 @@ function flippy_node_view($node, $view_mode = 'full') {
   // Only add the pager if it should be used for this node's content type.
   if (_flippy_use_pager($node)) {
     $node->content['flippy_pager'] = array(
-      '#theme' => 'flippy',
-      '#list' => flippy_build_list($node),
+      '#theme'    => 'flippy',
+      '#list'     => flippy_build_list($node),
+      '#attached' => array(
+        'css' => array(
+          drupal_get_path('module', 'flippy') . '/flippy.css',
+        ),
+      ),
     );
     // Add the previous/next elements to the page head, if enable for this
     // content type.
@@ -368,11 +373,11 @@ function flippy_build_list($node) {
   }
   if (!isset($master_list[$node->id()])) {
     // Check to see if we need custom sorting
-    if (\Drupal::config('flippy.settings')->get('flippy_custom_sorting_' . $propertyValues['type'][0]['value'])) {
+    if (\Drupal::config('flippy.settings')->get('flippy_custom_sorting_' . $propertyValues['type'][0]['target_id'])) {
       // Get order
-      $order = \Drupal::config('flippy.settings')->get('flippy_order_' . $propertyValues['type'][0]['value']);
+      $order = \Drupal::config('flippy.settings')->get('flippy_order_' . $propertyValues['type'][0]['target_id']);
       // Get sort
-      $sort = \Drupal::config('flippy.settings')->get('flippy_sort_' . $propertyValues['type'][0]['value']);
+      $sort = \Drupal::config('flippy.settings')->get('flippy_sort_' . $propertyValues['type'][0]['target_id']);
     }
     else {
       $order = 'ASC';
@@ -408,7 +413,7 @@ function flippy_build_list($node) {
     //$language = new Language();
     $query = db_select('node_field_data', 'nfd');
     $query->fields('nfd', array('nid'))
-      ->condition('nfd.type', $propertyValues['type'][0]['value'])
+      ->condition('nfd.type', $propertyValues['type'][0]['target_id'])
       ->condition('nfd.status', 1)
       ->condition('nfd.nid', $propertyValues['nid'][0]['value'], '!=')
       //->condition('langcode', array($language::LANGCODE_DEFAULT, $language::LANGCODE_NOT_SPECIFIED), 'IN')
@@ -494,6 +499,13 @@ function flippy_build_list($node) {
       $next->orderBy($sort, $up);
       $last->orderBy($sort, $down);
     }
+
+    // set the secondary ordering in case the values are the same
+    $first->orderBy('nfd.nid', $up);
+    $prev->orderBy('nfd.nid', $down);
+    $next->orderBy('nfd.nid', $up);
+    $last->orderBy('nfd.nid', $down);
+
     // Execute the queries
     $results = array();
     $results['first'] = $first->execute()->fetchField();
@@ -529,7 +541,7 @@ function flippy_build_list($node) {
       }
     }
     // create random list
-    if (\Drupal::config('flippy.settings')->get('flippy_random_' . $propertyValues['type'][0]['value'])) {
+    if (\Drupal::config('flippy.settings')->get('flippy_random_' . $propertyValues['type'][0]['target_id'])) {
       $random->orderRandom();
       $random_nid = $random->execute()->fetchField();
 
@@ -560,7 +572,6 @@ function flippy_build_list($node) {
  *  Implements template_preprocess_hook()
  */
 function template_preprocess_flippy(&$vars) {
-  drupal_add_css(drupal_get_path('module', 'flippy') . '/flippy.css');
 
   // for getting node type
   if ($node = menu_get_object('node')) {
