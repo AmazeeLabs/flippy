@@ -1,6 +1,7 @@
 <?php
 // Drupal classes used in this module
-use Drupal\field\Field;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\node\Entity\Node;
 use Drupal\Core\Language\Language;
 use Drupal\flippy\FlippyPager;
 
@@ -26,7 +27,7 @@ function flippy_theme() {
 /**
  * Implements hook_form_FORM_ID_alter().
  */
-function flippy_form_node_type_edit_form_alter(&$form, $form_state) {
+function flippy_form_node_type_edit_form_alter(&$form, FormStateInterface $form_state) {
   if (isset($form['type'])) {
 
     // flippy settings
@@ -236,14 +237,22 @@ function flippy_form_node_type_edit_form_alter(&$form, $form_state) {
     );
 
     // Allow certain base table properties for sorting
-    $sort_options = _flippy_sorting_properties();
+    // $sort_options = _flippy_sorting_properties();
+    $sort_options = array();
     // Also allow some entity fields
-    $content_type_fields = \Drupal\Field\field::fieldInfo()->getBundleInstances('node', $form['type']['#default_value']);
+    $content_type_fields = \Drupal::entityManager()->getFieldDefinitions('node', $form['type']['#default_value']);
     foreach ($content_type_fields as $sort_field) {
-      $field_info = \Drupal\Field\field::fieldInfo()->getField('node', $sort_field->getName());
-      if ($field_info->status() && !isset($field_info->indexes['target_id'])) {
-        // only allow fields that have a 'value' column
-        $sort_options[$sort_field->getName()] = $sort_field->label();
+      if (get_class($sort_field) == 'Drupal\field\Entity\FieldConfig') {
+        // It is an additional field.
+        $itemDefinition = $sort_field->getFieldStorageDefinition();
+        $schema_info = $itemDefinition->getSchema();
+      }
+      else {
+        // It is a base field.
+        $schema_info = $sort_field->getSchema();
+      }
+      if (isset($schema_info['columns']['value']) && $schema_info['columns']['value']['type'] == 'int') {
+        $sort_options[$sort_field->getName()] = $sort_field->getLabel();
       }
     }
 
@@ -296,31 +305,31 @@ function _flippy_sorting_properties() {
 /**
  * Creating custom form submit handler to save the settings to config file.
  */
-function _flippy_node_type_form_submit($form, $form_state) {
+function _flippy_node_type_form_submit($form, FormStateInterface $form_state) {
   \Drupal::config('flippy.settings')
-    ->set('flippy_' . $form['type']['#default_value'], $form_state['values']['flippy'])
-    ->set('flippy_head_' . $form['type']['#default_value'], $form_state['values']['flippy_head'])
-    ->set('flippy_show_empty_' . $form['type']['#default_value'], $form_state['values']['flippy_show_empty'])
-    ->set('flippy_prev_label_' . $form['type']['#default_value'], $form_state['values']['flippy_prev_label'])
-    ->set('flippy_next_label_' . $form['type']['#default_value'], $form_state['values']['flippy_next_label'])
-    ->set('flippy_first_last_' . $form['type']['#default_value'], $form_state['values']['flippy_firstlast'])
-    ->set('flippy_first_label_' . $form['type']['#default_value'], $form_state['values']['flippy_first_label'])
-    ->set('flippy_last_label_' . $form['type']['#default_value'], $form_state['values']['flippy_last_label'])
-    ->set('flippy_loop_' . $form['type']['#default_value'], $form_state['values']['flippy_loop'])
-    ->set('flippy_random_' . $form['type']['#default_value'], $form_state['values']['flippy_random'])
-    ->set('flippy_random_label_' . $form['type']['#default_value'], $form_state['values']['flippy_random_label'])
-    ->set('flippy_truncate_' . $form['type']['#default_value'], $form_state['values']['flippy_truncate'])
-    ->set('flippy_ellipse_' . $form['type']['#default_value'], $form_state['values']['flippy_ellipse'])
-    ->set('flippy_custom_sorting_' . $form['type']['#default_value'], $form_state['values']['flippy_custom_sorting'])
-    ->set('flippy_sort_' . $form['type']['#default_value'], $form_state['values']['flippy_sort'])
-    ->set('flippy_order_' . $form['type']['#default_value'], $form_state['values']['flippy_order'])
+    ->set('flippy_' . $form['type']['#default_value'], $form_state->getValue('flippy'))
+    ->set('flippy_head_' . $form['type']['#default_value'], $form_state->getValue('flippy_head'))
+    ->set('flippy_show_empty_' . $form['type']['#default_value'], $form_state->getValue('flippy_show_empty'))
+    ->set('flippy_prev_label_' . $form['type']['#default_value'], $form_state->getValue('flippy_prev_label'))
+    ->set('flippy_next_label_' . $form['type']['#default_value'], $form_state->getValue('flippy_next_label'))
+    ->set('flippy_first_last_' . $form['type']['#default_value'], $form_state->getValue('flippy_firstlast'))
+    ->set('flippy_first_label_' . $form['type']['#default_value'], $form_state->getValue('flippy_first_label'))
+    ->set('flippy_last_label_' . $form['type']['#default_value'], $form_state->getValue('flippy_last_label'))
+    ->set('flippy_loop_' . $form['type']['#default_value'], $form_state->getValue('flippy_loop'))
+    ->set('flippy_random_' . $form['type']['#default_value'], $form_state->getValue('flippy_random'))
+    ->set('flippy_random_label_' . $form['type']['#default_value'], $form_state->getValue('flippy_random_label'))
+    ->set('flippy_truncate_' . $form['type']['#default_value'], $form_state->getValue('flippy_truncate'))
+    ->set('flippy_ellipse_' . $form['type']['#default_value'], $form_state->getValue('flippy_ellipse'))
+    ->set('flippy_custom_sorting_' . $form['type']['#default_value'], $form_state->getValue('flippy_custom_sorting'))
+    ->set('flippy_sort_' . $form['type']['#default_value'], $form_state->getValue('flippy_sort'))
+    ->set('flippy_order_' . $form['type']['#default_value'], $form_state->getValue('flippy_order'))
     ->save();
 }
 
 /**
- * Implements hook_field_extra_fields().
+ * Implements hook_entity_extra_field_info().
  */
-function flippy_field_extra_fields() {
+function flippy_entity_extra_field_info() {
   $extra = array();
   foreach (node_type_get_names() as $type => $name) {
     $flippy_node_type = \Drupal::config('flippy.settings')->get('flippy_' . $type);
@@ -342,7 +351,7 @@ function flippy_field_extra_fields() {
 /**
  * Implements hook_node_view().
  */
-function flippy_node_view($node, $view_mode = 'full') {
+function flippy_node_view(Node $node, EntityViewDisplayInterface $display, $view_mode, $langcode) {
   // Only add the pager if it should be used for this node's content type.
   if (_flippy_use_pager($node)) {
     $node->content['flippy_pager'] = array(
