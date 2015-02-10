@@ -23,7 +23,6 @@ class FLippyPager {
    */
   public static function flippy_build_list($node) {
     // Get all the properties from the current node
-    $propertyValues = $node->getPropertyValues();
 
     $master_list = &drupal_static(__FUNCTION__);
     if (!isset($master_list)) {
@@ -31,11 +30,11 @@ class FLippyPager {
     }
     if (!isset($master_list[$node->id()])) {
       // Check to see if we need custom sorting
-      if (\Drupal::config('flippy.settings')->get('flippy_custom_sorting_' . $propertyValues['type'][0]['target_id'])) {
+      if (\Drupal::config('flippy.settings')->get('flippy_custom_sorting_' . $node->getType())) {
         // Get order
-        $order = \Drupal::config('flippy.settings')->get('flippy_order_' . $propertyValues['type'][0]['target_id']);
+        $order = \Drupal::config('flippy.settings')->get('flippy_order_' . $node->getType());
         // Get sort
-        $sort = \Drupal::config('flippy.settings')->get('flippy_sort_' . $propertyValues['type'][0]['target_id']);
+          $sort = \Drupal::config('flippy.settings')->get('flippy_sort_' . $node->getType());
       }
       else {
         $order = 'ASC';
@@ -71,9 +70,9 @@ class FLippyPager {
       //$language = new Language();
       $query = db_select('node_field_data', 'nfd');
       $query->fields('nfd', array('nid'))
-        ->condition('nfd.type', $propertyValues['type'][0]['target_id'])
+        ->condition('nfd.type', $node->getType())
         ->condition('nfd.status', 1)
-        ->condition('nfd.nid', $propertyValues['nid'][0]['value'], '!=')
+        ->condition('nfd.nid', $node->id(), '!=')
         //todo: add language condition.
         //->condition('langcode', array($language::LANGCODE_DEFAULT, $language::LANGCODE_NOT_SPECIFIED), 'IN')
         ->range(0, 1)
@@ -95,7 +94,7 @@ class FLippyPager {
         $first->condition(db_or()
             ->condition($sort . '.' . $sort . '_value', $field_value, $before)
             ->condition(db_and()
-                ->condition('nfd.nid', $propertyValues['nid'][0]['value'], $before)
+                ->condition('nfd.nid', $node->id(), $before)
                 ->condition(db_or()
                     ->condition($sort . '.' . $sort . '_value', $field_value, '=')
                     ->isnull($sort . '.' . $sort . '_value')
@@ -107,7 +106,7 @@ class FLippyPager {
         $last->condition(db_or()
             ->condition($sort . '.' . $sort . '_value', $field_value, $after)
             ->condition(db_and()
-                ->condition('nfd.nid', $propertyValues['nid'][0]['value'], $after)
+                ->condition('nfd.nid', $node->id(), $after)
                 ->condition(db_or()
                     ->condition($sort . '.' . $sort . '_value', $field_value, '=')
                     ->isnull($sort . '.' . $sort . '_value')
@@ -121,7 +120,7 @@ class FLippyPager {
         $prev->condition(db_or()
             ->condition($sort . '.' . $sort . '_value', $field_value, $before)
             ->condition(db_and()
-                ->condition('nfd.nid', $propertyValues['nid'][0]['value'], $before)
+                ->condition('nfd.nid', $node->id(), $before)
                 ->condition(db_or()
                     ->condition($sort . '.' . $sort . '_value', $field_value, '=')
                     ->isnull($sort . '.' . $sort . '_value')
@@ -132,7 +131,7 @@ class FLippyPager {
         $next->condition(db_or()
             ->condition($sort . '.' . $sort . '_value', $field_value, $after)
             ->condition(db_and()
-                ->condition('nfd.nid', $propertyValues['nid'][0]['value'], $after)
+                ->condition('nfd.nid', $node->id(), $after)
                 ->condition(db_or()
                     ->condition($sort . '.' . $sort . '_value', $field_value, '=')
                     ->isnull($sort . '.' . $sort . '_value')
@@ -150,27 +149,29 @@ class FLippyPager {
         // Otherwise we assume the variable is a column in the base table
         // (a property). Like above, set the conditions
 
+        $sort_value = $node->get($sort);
+        $sort_value = $sort_value->getValue();
         // first and last query
-        $first->condition($sort, $propertyValues[$sort][0]['value'], $before);
-        $last->condition($sort, $propertyValues[$sort][0]['value'], $after);
+        $first->condition($sort, $sort_value[0]['value'], $before);
+        $last->condition($sort, $sort_value[0]['value'], $after);
 
         // previous query to find out the previous item based on the field, using
         // node id if the other criteria is the same.
         $prev->condition(db_or()
-            ->condition($sort, $propertyValues[$sort][0]['value'], $before)
+            ->condition($sort, $sort_value[0]['value'], $before)
             ->condition(db_and()
-                ->condition($sort, $propertyValues[$sort][0]['value'], '=')
-                ->condition('nfd.nid', $propertyValues['nid'][0]['value'], $before)
+                ->condition($sort, $sort_value[0]['value'], '=')
+                ->condition('nfd.nid', $node->id(), $before)
             )
         );
 
         // next query to find out the next item based on the field, using
         // node id if the other criteria is the same.
         $next->condition(db_or()
-            ->condition($sort, $propertyValues[$sort][0]['value'], $after)
+            ->condition($sort, $sort_value[0]['value'], $after)
             ->condition(db_and()
-                ->condition($sort, $propertyValues[$sort][0]['value'], '=')
-                ->condition('nfd.nid', $propertyValues['nid'][0]['value'], $after)
+                ->condition($sort, $sort_value[0]['value'], '=')
+                ->condition('nfd.nid', $node->id(), $after)
             )
         );
 
@@ -180,7 +181,6 @@ class FLippyPager {
         $next->orderBy($sort, $up);
         $last->orderBy($sort, $down);
       }
-
 
       // set the secondary ordering in case the values are the same
       $first->orderBy('nfd.nid', $up);
@@ -204,6 +204,7 @@ class FLippyPager {
           $node_ids[$key] = $results[$key];
         }
       }
+
       // make our final array of node IDs and titles
       $list = array();
       // but only if we actually found some matches
@@ -223,7 +224,7 @@ class FLippyPager {
         }
       }
       // create random list
-      if (\Drupal::config('flippy.settings')->get('flippy_random_' . $propertyValues['type'][0]['target_id'])) {
+      if (\Drupal::config('flippy.settings')->get('flippy_random_' . $node->getType())) {
         $random->orderRandom();
         $random_nid = $random->execute()->fetchField();
 
@@ -241,13 +242,13 @@ class FLippyPager {
       // finally set the current info for themers to use
 
       $list['current'] = array(
-        'nid' => $propertyValues['nid'][0]['value'],
-        'title' => $propertyValues['title'][0]['value'],
+        'nid' => $node->id(),
+        'title' => $node->getTitle(),
       );
 
-      $master_list[$propertyValues['nid'][0]['value']] = $list;
+      $master_list[$node->id()] = $list;
     }
-    return $master_list[$propertyValues['nid'][0]['value']];
+    return $master_list[$node->id()];
   }
 }
 ?>

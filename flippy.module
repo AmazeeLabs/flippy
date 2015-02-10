@@ -1,9 +1,10 @@
 <?php
 // Drupal classes used in this module
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\node\Entity\Node;
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
+use Drupal\Core\Url;
 use Drupal\Core\Language\Language;
-use Drupal\flippy\FlippyPager;
 
 /**
  * @file
@@ -289,24 +290,10 @@ function flippy_form_node_type_edit_form_alter(&$form, FormStateInterface $form_
 }
 
 /**
- * List the base node properties that are allowed for custom pager sorting.
- * These should all correspond to to columns in the node table.
- *
- * @return array Associative array of $machine_name => $human_name
- */
-function _flippy_sorting_properties() {
-  return array(
-    'created' => t('Post date'),
-    'title' => t('Title'),
-    'nid' => t('Node ID'),
-  );
-}
-
-/**
  * Creating custom form submit handler to save the settings to config file.
  */
 function _flippy_node_type_form_submit($form, FormStateInterface $form_state) {
-  \Drupal::config('flippy.settings')
+  \Drupal::configFactory()->getEditable('flippy.settings')
     ->set('flippy_' . $form['type']['#default_value'], $form_state->getValue('flippy'))
     ->set('flippy_head_' . $form['type']['#default_value'], $form_state->getValue('flippy_head'))
     ->set('flippy_show_empty_' . $form['type']['#default_value'], $form_state->getValue('flippy_show_empty'))
@@ -349,23 +336,39 @@ function flippy_entity_extra_field_info() {
 }
 
 /**
- * Implements hook_node_view().
+ * Implements hook_ENTITY_TYPE_view() for node entities.
  */
-function flippy_node_view(Node $node, EntityViewDisplayInterface $display, $view_mode, $langcode) {
+function flippy_node_view(array &$build, EntityInterface $node, EntityViewDisplayInterface $display, $view_mode, $langcode) {
   // Only add the pager if it should be used for this node's content type.
   if (_flippy_use_pager($node)) {
-    $node->content['flippy_pager'] = array(
+    $build['flippy_pager'] = array(
       '#theme'    => 'flippy',
       '#list'     => \Drupal::service('flippy.pager')->flippy_build_list($node),
       '#attached' => array(
-        'css' => array(
-          drupal_get_path('module', 'flippy') . '/flippy.css',
+        'library' => array(
+          'flippy/drupal.flippy',
         ),
       ),
     );
     // Add the previous/next elements to the page head, if enable for this
     // content type.
-    _flippy_add_head_elements($node);
+    if (is_object($node)) {
+      if (\Drupal::config('flippy.settings')->get('flippy_head_' . $node->getType())) {
+        $links = \Drupal::service('flippy.pager')->flippy_build_list($node);
+        if ($links['prev']['nid'] != FALSE) {
+          $build['#attached']['html_head_link'][][] = array(
+            'rel' => 'prev',
+            'href' => \Drupal::url('entity.node.canonical', array('node' => $links['prev']['nid'])),
+          );
+        }
+        if ($links['next']['nid'] != FALSE) {
+          $build['#attached']['html_head_link'][][] = array(
+            'rel' => 'next',
+            'href' => \Drupal::url('entity.node.canonical', array('node' => $links['next']['nid'])),
+          );
+        }
+      }
+    }
   }
 }
 
@@ -391,11 +394,11 @@ function template_preprocess_flippy(&$vars) {
   // See if we need to truncate labels
   if ($truncate = \Drupal::config('flippy.settings')->get('flippy_truncate_' . $vars['node']->getType())) {
     if (is_numeric($truncate)) {
-      $first_label  = strlen($first_label) > $truncate ? $first_label : substr($first_label, 0, $truncate) . \Drupal::config('flippy.settings').get('flippy_ellipse_' . $vars['node']->getType());
-      $last_label   = strlen($last_label) > $truncate ? $last_label : substr($last_label, 0, $truncate) . \Drupal::config('flippy.settings').get('flippy_ellipse_' . $vars['node']->getType());
-      $random_label = strlen($random_label) > $truncate ? $random_label : substr($random_label, 0, $truncate) . \Drupal::config('flippy.settings').get('flippy_ellipse_' . $vars['node']->getType());
-      $prev_label   = strlen($prev_label) > $truncate ? $prev_label : substr($prev_label, 0, $truncate) . \Drupal::config('flippy.settings').get('flippy_ellipse_' . $vars['node']->getType());
-      $next_label   = strlen($next_label) > $truncate ? $next_label : substr($next_label, 0, $truncate) . \Drupal::config('flippy.settings').get('flippy_ellipse_' . $vars['node']->getType());
+      $first_label  = strlen($first_label) > $truncate ? $first_label : substr($first_label, 0, $truncate) . \Drupal::config('flippy.settings')->get('flippy_ellipse_' . $vars['node']->getType());
+      $last_label   = strlen($last_label) > $truncate ? $last_label : substr($last_label, 0, $truncate) . \Drupal::config('flippy.settings')->get('flippy_ellipse_' . $vars['node']->getType());
+      $random_label = strlen($random_label) > $truncate ? $random_label : substr($random_label, 0, $truncate) . \Drupal::config('flippy.settings')->get('flippy_ellipse_' . $vars['node']->getType());
+      $prev_label   = strlen($prev_label) > $truncate ? $prev_label : substr($prev_label, 0, $truncate) . \Drupal::config('flippy.settings')->get('flippy_ellipse_' . $vars['node']->getType());
+      $next_label   = strlen($next_label) > $truncate ? $next_label : substr($next_label, 0, $truncate) . \Drupal::config('flippy.settings')->get('flippy_ellipse_' . $vars['node']->getType());
     }
   }
 
@@ -412,16 +415,20 @@ function template_preprocess_flippy(&$vars) {
   // Build the variables for twig
   if ($nav = $vars['list']) {
 
-    if (\Drupal::config('flippy.settings')->get('flippy_first_last_' . $vars['node']->getType()) != NULL) {
-      if (isset($nav['first']) && $nav['first']['nid'] != '') {
-        $vars['first'] = l($first_label, 'node/' . $nav['first']['nid']);
+    $url = Url::fromRoute('entity.node.canonical');
+
+    if (\Drupal::config('flippy.settings')->get('flippy_first_last_' . $vars['node']->getType()) != 0) {
+      if (isset($nav['first']) && $nav['first']['nid'] != FALSE) {
+        $url->setRouteParameter('node', $nav['first']['nid']);
+        $vars['first'] = \Drupal::l($first_label, $url);
       }
       elseif ($show_empty) {
         $vars['first'] = $first_label;
       }
 
-      if (isset($nav['last']) && $nav['last']['nid'] != '') {
-        $vars['last'] = l($last_label, 'node/' . $nav['last']['nid']);
+      if (isset($nav['last']) && $nav['last']['nid'] != FALSE) {
+        $url->setRouteParameter('node', $nav['last']['nid']);
+        $vars['last'] = \Drupal::l($last_label, $url);
       }
       elseif ($show_empty) {
         $vars['last'] = $last_label;
@@ -429,18 +436,21 @@ function template_preprocess_flippy(&$vars) {
     }
 
     if (\Drupal::config('flippy.settings')->get('flippy_random_'. $vars['node']->getType())) {
-      $vars['random'] = l($random_label, 'node/' . $nav['random']['nid']);
+      $url->setRouteParameter('node', $nav['random']['nid']);
+      $vars['random'] = \Drupal::l($random_label, $url);
     }
 
-    if (isset($nav['prev']) && $nav['prev']['nid'] != '') {
-      $vars['prev'] = l($prev_label, 'node/' . $nav['prev']['nid']);
+    if (isset($nav['prev']) && $nav['prev']['nid'] != FALSE) {
+      $url->setRouteParameter('node', $nav['prev']['nid']);
+      $vars['prev'] = \Drupal::l($prev_label, $url);
     }
     elseif ($show_empty) {
       $vars['prev'] = t($prev_label);
     }
 
-    if (isset($nav['next']) && $nav['next']['nid'] != '') {
-      $vars['next'] = l($next_label, 'node/' . $nav['next']['nid']);
+    if (isset($nav['next']) && $nav['next']['nid'] != FALSE) {
+      $url->setRouteParameter('node', $nav['next']['nid']);
+      $vars['next'] = \Drupal::l($next_label, $url);
     }
     elseif ($show_empty) {
       $vars['next'] = t($next_label);
@@ -474,32 +484,4 @@ function _flippy_use_pager($node) {
     return FALSE;
   }
   return node_is_page($node) && \Drupal::config('flippy.settings')->get('flippy_' . $node->getType());
-}
-
-/**
- * Add the previous/next elements to the page head, if enable for the content
- * type of the given node.
- *
- * @param $node
- *   Node to add head elements for
- */
-function _flippy_add_head_elements($node) {
-  if (is_object($node)) {
-    if (\Drupal::config('flippy.settings')->get('flippy_head_' . $node->getType())) {
-      //$links = flippy_build_list($node);
-      $links = \Drupal::service('flippy.pager')->flippy_build_list($node);
-      if (!empty($links['prev'])) {
-        drupal_add_html_head_link(array(
-          'rel' => 'prev',
-          'href' => url('node/' . $links['prev']['nid']),
-        ));
-      }
-      if (!empty($links['next'])) {
-        drupal_add_html_head_link(array(
-          'rel' => 'next',
-          'href' => url('node/' . $links['next']['nid']),
-        ));
-      }
-    }
-  }
 }
