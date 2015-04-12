@@ -34,16 +34,31 @@ class FLippyPager {
         // Get order
         $order = \Drupal::config('flippy.settings')->get('flippy_order_' . $node->getType());
         // Get sort
-          $sort = \Drupal::config('flippy.settings')->get('flippy_sort_' . $node->getType());
+        $sort = \Drupal::config('flippy.settings')->get('flippy_sort_' . $node->getType());
       }
       else {
         $order = 'ASC';
         $sort = 'created';
       }
       // Validate that the sort criteria is OK to use
-      $base_table_properties = array_keys(_flippy_sorting_properties());
+
+      // Achieve the base field from a node type.
+      $sort_options = array();
+      // Get all the field from a node type.
+      $content_type_fields = \Drupal::entityManager()->getFieldDefinitions('node', $node->getType());
+      foreach ($content_type_fields as $sort_field) {
+        if (get_class($sort_field) != 'Drupal\field\Entity\FieldConfig') {
+          // It is a base field.
+          $schema_info = $sort_field->getSchema();
+        }
+        if (isset($schema_info['columns']['value']) && $schema_info['columns']['value']['type'] == 'int') {
+          $sort_options[] = $sort_field->getName();
+        }
+      }
+
+      $base_table_properties = array_keys($sort_options);
       $field_value = NULL;
-      // If the sort criteria is not in the base_table_properties array,
+      // If the sort criteria is not in the $sort_option array,
       // we assume it's a field
       if (!in_array($sort, $base_table_properties)) {
         // get the value of the current node's field (use the first one only)
