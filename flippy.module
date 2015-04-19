@@ -248,7 +248,7 @@ function flippy_form_node_type_edit_form_alter(&$form, FormStateInterface $form_
         $itemDefinition = $sort_field->getFieldStorageDefinition();
         $schema_info = $itemDefinition->getSchema();
       }
-      else {
+      else if (get_class($sort_field) == 'Drupal\Core\Field\BaseFieldDefinition') {
         // It is a base field.
         $schema_info = $sort_field->getSchema();
       }

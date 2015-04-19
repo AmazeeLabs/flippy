@@ -47,7 +47,7 @@ class FLippyPager {
       // Get all the field from a node type.
       $content_type_fields = \Drupal::entityManager()->getFieldDefinitions('node', $node->getType());
       foreach ($content_type_fields as $sort_field) {
-        if (get_class($sort_field) != 'Drupal\field\Entity\FieldConfig') {
+        if (get_class($sort_field) == 'Drupal\Core\Field\BaseFieldDefinition') {
           // It is a base field.
           $schema_info = $sort_field->getSchema();
         }
