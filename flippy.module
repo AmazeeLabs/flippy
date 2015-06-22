@@ -32,22 +32,23 @@ function flippy_form_node_type_edit_form_alter(&$form, FormStateInterface $form_
   if (isset($form['type'])) {
 
     // flippy settings
-    $flippy_node_type      = \Drupal::config('flippy.settings')->get('flippy_' . $form['type']['#default_value']);
-    $flippy_head           = \Drupal::config('flippy.settings')->get('flippy_head_' . $form['type']['#default_value']);
-    $flippy_show_empty     = \Drupal::config('flippy.settings')->get('flippy_show_empty_' . $form['type']['#default_value']);
-    $flippy_prev_label     = \Drupal::config('flippy.settings')->get('flippy_prev_label_' . $form['type']['#default_value']);
-    $flippy_next_label     = \Drupal::config('flippy.settings')->get('flippy_next_label_' . $form['type']['#default_value']);
-    $flippy_first_last     = \Drupal::config('flippy.settings')->get('flippy_first_last_' . $form['type']['#default_value']);
-    $flippy_first_label    = \Drupal::config('flippy.settings')->get('flippy_first_label_' . $form['type']['#default_value']);
-    $flippy_last_label     = \Drupal::config('flippy.settings')->get('flippy_last_label_' . $form['type']['#default_value']);
-    $flippy_loop           = \Drupal::config('flippy.settings')->get('flippy_loop_' . $form['type']['#default_value']);
-    $flippy_random         = \Drupal::config('flippy.settings')->get('flippy_random_' . $form['type']['#default_value']);
-    $flippy_random_label   = \Drupal::config('flippy.settings')->get('flippy_random_label_' . $form['type']['#default_value']);
-    $flippy_truncate       = \Drupal::config('flippy.settings')->get('flippy_truncate_' . $form['type']['#default_value']);
-    $flippy_ellipse        = \Drupal::config('flippy.settings')->get('flippy_ellipse_' . $form['type']['#default_value']);
-    $flippy_custom_sorting = \Drupal::config('flippy.settings')->get('flippy_custom_sorting_' . $form['type']['#default_value']);
-    $flippy_sort           = \Drupal::config('flippy.settings')->get('flippy_sort_' . $form['type']['#default_value']);
-    $flippy_order          = \Drupal::config('flippy.settings')->get('flippy_order_' . $form['type']['#default_value']);
+    $flippy_settings = \Drupal::config('flippy.settings');
+    $flippy_node_type      = $flippy_settings->get('flippy_' . $form['type']['#default_value']);
+    $flippy_head           = $flippy_settings->get('flippy_head_' . $form['type']['#default_value']);
+    $flippy_show_empty     = $flippy_settings->get('flippy_show_empty_' . $form['type']['#default_value']);
+    $flippy_prev_label     = $flippy_settings->get('flippy_prev_label_' . $form['type']['#default_value']);
+    $flippy_next_label     = $flippy_settings->get('flippy_next_label_' . $form['type']['#default_value']);
+    $flippy_first_last     = $flippy_settings->get('flippy_first_last_' . $form['type']['#default_value']);
+    $flippy_first_label    = $flippy_settings->get('flippy_first_label_' . $form['type']['#default_value']);
+    $flippy_last_label     = $flippy_settings->get('flippy_last_label_' . $form['type']['#default_value']);
+    $flippy_loop           = $flippy_settings->get('flippy_loop_' . $form['type']['#default_value']);
+    $flippy_random         = $flippy_settings->get('flippy_random_' . $form['type']['#default_value']);
+    $flippy_random_label   = $flippy_settings->get('flippy_random_label_' . $form['type']['#default_value']);
+    $flippy_truncate       = $flippy_settings->get('flippy_truncate_' . $form['type']['#default_value']);
+    $flippy_ellipse        = $flippy_settings->get('flippy_ellipse_' . $form['type']['#default_value']);
+    $flippy_custom_sorting = $flippy_settings->get('flippy_custom_sorting_' . $form['type']['#default_value']);
+    $flippy_sort           = $flippy_settings->get('flippy_sort_' . $form['type']['#default_value']);
+    $flippy_order          = $flippy_settings->get('flippy_order_' . $form['type']['#default_value']);
 
     $form['flippy'] = array(
       '#type' => 'details',
@@ -382,28 +383,30 @@ function template_preprocess_flippy(&$vars) {
     $vars['node'] = $node;
   }
 
-  // Get all the labels
-  $first_label  = \Drupal::config('flippy.settings')->get('flippy_first_label_' . $vars['node']->getType());
-  $last_label   = \Drupal::config('flippy.settings')->get('flippy_last_label_' . $vars['node']->getType());
-  $random_label = \Drupal::config('flippy.settings')->get('flippy_random_label_' . $vars['node']->getType());
-  $prev_label   = \Drupal::config('flippy.settings')->get('flippy_prev_label_' . $vars['node']->getType());
-  $next_label   = \Drupal::config('flippy.settings')->get('flippy_next_label_' . $vars['node']->getType());
+  $flippy_settings = \Drupal::config('flippy.settings');
 
-  $show_empty = \Drupal::config('flippy.settings')->get('flippy_show_empty_' . $vars['node']->getType());
+  // Get all the labels
+  $first_label  = $flippy_settings->get('flippy_first_label_' . $vars['node']->getType());
+  $last_label   = $flippy_settings->get('flippy_last_label_' . $vars['node']->getType());
+  $random_label = $flippy_settings->get('flippy_random_label_' . $vars['node']->getType());
+  $prev_label   = $flippy_settings->get('flippy_prev_label_' . $vars['node']->getType());
+  $next_label   = $flippy_settings->get('flippy_next_label_' . $vars['node']->getType());
+
+  $show_empty = $flippy_settings->get('flippy_show_empty_' . $vars['node']->getType());
 
   // See if we need to truncate labels
-  if ($truncate = \Drupal::config('flippy.settings')->get('flippy_truncate_' . $vars['node']->getType())) {
+  if ($truncate = $flippy_settings->get('flippy_truncate_' . $vars['node']->getType())) {
     if (is_numeric($truncate)) {
-      $first_label  = strlen($first_label) > $truncate ? $first_label : substr($first_label, 0, $truncate) . \Drupal::config('flippy.settings')->get('flippy_ellipse_' . $vars['node']->getType());
-      $last_label   = strlen($last_label) > $truncate ? $last_label : substr($last_label, 0, $truncate) . \Drupal::config('flippy.settings')->get('flippy_ellipse_' . $vars['node']->getType());
-      $random_label = strlen($random_label) > $truncate ? $random_label : substr($random_label, 0, $truncate) . \Drupal::config('flippy.settings')->get('flippy_ellipse_' . $vars['node']->getType());
-      $prev_label   = strlen($prev_label) > $truncate ? $prev_label : substr($prev_label, 0, $truncate) . \Drupal::config('flippy.settings')->get('flippy_ellipse_' . $vars['node']->getType());
-      $next_label   = strlen($next_label) > $truncate ? $next_label : substr($next_label, 0, $truncate) . \Drupal::config('flippy.settings')->get('flippy_ellipse_' . $vars['node']->getType());
+      $first_label  = strlen($first_label) > $truncate ? $first_label : substr($first_label, 0, $truncate) . $flippy_settings->get('flippy_ellipse_' . $vars['node']->getType());
+      $last_label   = strlen($last_label) > $truncate ? $last_label : substr($last_label, 0, $truncate) . $flippy_settings->get('flippy_ellipse_' . $vars['node']->getType());
+      $random_label = strlen($random_label) > $truncate ? $random_label : substr($random_label, 0, $truncate) . $flippy_settings->get('flippy_ellipse_' . $vars['node']->getType());
+      $prev_label   = strlen($prev_label) > $truncate ? $prev_label : substr($prev_label, 0, $truncate) . $flippy_settings->get('flippy_ellipse_' . $vars['node']->getType());
+      $next_label   = strlen($next_label) > $truncate ? $next_label : substr($next_label, 0, $truncate) . $flippy_settings->get('flippy_ellipse_' . $vars['node']->getType());
     }
   }
 
   // See if we need to create the loop
-  if (\Drupal::config('flippy.settings')->get('flippy_loop_'. $vars['node']->getType())) {
+  if ($flippy_settings->get('flippy_loop_'. $vars['node']->getType())) {
     if (!$vars['list']['next']['nid']) {
       $vars['list']['next']['nid'] = $vars['list']['first']['nid'];
     }
@@ -417,7 +420,7 @@ function template_preprocess_flippy(&$vars) {
 
     $url = Url::fromRoute('entity.node.canonical');
 
-    if (\Drupal::config('flippy.settings')->get('flippy_first_last_' . $vars['node']->getType()) != 0) {
+    if ($flippy_settings->get('flippy_first_last_' . $vars['node']->getType()) != 0) {
       if (isset($nav['first']) && $nav['first']['nid'] != FALSE) {
         $url->setRouteParameter('node', $nav['first']['nid']);
         $vars['first'] = \Drupal::l($first_label, $url);
@@ -435,7 +438,7 @@ function template_preprocess_flippy(&$vars) {
       }
     }
 
-    if (\Drupal::config('flippy.settings')->get('flippy_random_'. $vars['node']->getType())) {
+    if ($flippy_settings->get('flippy_random_'. $vars['node']->getType())) {
       $url->setRouteParameter('node', $nav['random']['nid']);
       $vars['random'] = \Drupal::l($random_label, $url);
     }
