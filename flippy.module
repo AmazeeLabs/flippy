@@ -4,6 +4,8 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
 use Drupal\Core\Url;
+use Drupal\Core\Link;
+use Drupal\node\Entity\Node;
 use Drupal\Core\Language\Language;
 
 /**
@@ -184,22 +186,24 @@ function flippy_form_node_type_edit_form_alter(&$form, FormStateInterface $form_
       ),
     );
 
-    $form['flippy']['flippy_token'] = array(
-      '#type' => 'fieldset',
-      '#collapsible' => TRUE,
-      '#collapsed' => TRUE,
-      '#title' => t('Browse available tokens'),
-      '#states' => array(
-        'visible' => array(
-          ':input[name=flippy]' => array('checked' => TRUE),
+    if (\Drupal::moduleHandler()->moduleExists('token')) {
+      $form['flippy']['flippy_token'] = array(
+        '#type' => 'fieldset',
+        '#collapsible' => TRUE,
+        '#collapsed' => TRUE,
+        '#title' => t('Browse available tokens'),
+        '#states' => array(
+          'visible' => array(
+            ':input[name=flippy]' => array('checked' => TRUE),
+          ),
         ),
-      ),
-    );
+      );
 
-    $form['flippy']['flippy_token']['flippy_token_browser'] = array(
-      '#theme' => 'token_tree',
-      '#token_types' => array('node'),
-    );
+      $form['flippy']['flippy_token']['flippy_token_browser'] = array(
+        '#theme' => 'token_tree',
+        '#token_types' => array('node'),
+      );
+    }
 
     $form['flippy']['flippy_truncate'] = array(
       '#type' => 'textfield',
@@ -339,7 +343,7 @@ function flippy_entity_extra_field_info() {
 /**
  * Implements hook_ENTITY_TYPE_view() for node entities.
  */
-function flippy_node_view(array &$build, EntityInterface $node, EntityViewDisplayInterface $display, $view_mode, $langcode) {
+function flippy_node_view(array &$build, EntityInterface $node, EntityViewDisplayInterface $display, $view_mode) {
   // Only add the pager if it should be used for this node's content type.
   if (_flippy_use_pager($node)) {
     $build['flippy_pager'] = array(
@@ -418,12 +422,14 @@ function template_preprocess_flippy(&$vars) {
   // Build the variables for twig
   if ($nav = $vars['list']) {
 
+    $token_service = \Drupal::token();
+
     $url = Url::fromRoute('entity.node.canonical');
 
     if ($flippy_settings->get('flippy_first_last_' . $vars['node']->getType()) != 0) {
       if (isset($nav['first']) && $nav['first']['nid'] != FALSE) {
         $url->setRouteParameter('node', $nav['first']['nid']);
-        $vars['first'] = \Drupal::l($first_label, $url);
+        $vars['first'] = Link::fromTextAndUrl($token_service->replace($first_label, ['node' => Node::load($nav['first']['nid'])]), $url);
       }
       elseif ($show_empty) {
         $vars['first'] = $first_label;
@@ -431,7 +437,7 @@ function template_preprocess_flippy(&$vars) {
 
       if (isset($nav['last']) && $nav['last']['nid'] != FALSE) {
         $url->setRouteParameter('node', $nav['last']['nid']);
-        $vars['last'] = \Drupal::l($last_label, $url);
+        $vars['last'] = Link::fromTextAndUrl($token_service->replace($last_label, ['node' => Node::load($nav['last']['nid'])]), $url);
       }
       elseif ($show_empty) {
         $vars['last'] = $last_label;
@@ -440,12 +446,12 @@ function template_preprocess_flippy(&$vars) {
 
     if ($flippy_settings->get('flippy_random_'. $vars['node']->getType())) {
       $url->setRouteParameter('node', $nav['random']['nid']);
-      $vars['random'] = \Drupal::l($random_label, $url);
+      $vars['random'] = Link::fromTextAndUrl($token_service->replace($random_label, ['node' => Node::load($nav['random']['nid'])]), $url);
     }
 
     if (isset($nav['prev']) && $nav['prev']['nid'] != FALSE) {
       $url->setRouteParameter('node', $nav['prev']['nid']);
-      $vars['prev'] = \Drupal::l($prev_label, $url);
+      $vars['prev'] = Link::fromTextAndUrl($token_service->replace($prev_label, ['node' => Node::load($nav['prev']['nid'])]), $url);
     }
     elseif ($show_empty) {
       $vars['prev'] = t($prev_label);
@@ -453,22 +459,12 @@ function template_preprocess_flippy(&$vars) {
 
     if (isset($nav['next']) && $nav['next']['nid'] != FALSE) {
       $url->setRouteParameter('node', $nav['next']['nid']);
-      $vars['next'] = \Drupal::l($next_label, $url);
+      $vars['next'] = Link::fromTextAndUrl($token_service->replace($next_label, ['node' => Node::load($nav['next']['nid'])]), $url);
     }
     elseif ($show_empty) {
       $vars['next'] = t($next_label);
     }
   }
-
-  // Replace any tokens present in the links
-  // todo add token replace when token d8 is available.
-  //foreach ($links as $key => &$link) {
-  //  if (isset($nav[$key]['nid']) && $nav[$key]['nid']) {
-  //    if (isset($list_nodes[$nav[$key]['nid']])) {
-  //      $link['title'] = token_replace($link['title'], array('node' => $list_nodes[$nav[$key]['nid']]));
-  //    }
-  //  }
-  //}
 
   unset($vars['list']);
   unset($vars['node']);

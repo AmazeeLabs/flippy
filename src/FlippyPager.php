@@ -10,7 +10,7 @@ namespace Drupal\flippy;
 /**
  * Defines the flippy pager service.
  */
-class FLippyPager {
+class FlippyPager {
 
   /**
    * Helper function: Query to get the list of flippy pagers.
