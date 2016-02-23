@@ -45,7 +45,7 @@ class FlippyPager {
       // Achieve the base field from a node type.
       $sort_options = array();
       // Get all the field from a node type.
-      $content_type_fields = \Drupal::entityManager()->getFieldDefinitions('node', $node->getType());
+      $content_type_fields = \Drupal::entityTypeManager()->getDefinitions('node', $node->getType());
       foreach ($content_type_fields as $sort_field) {
         if (get_class($sort_field) == 'Drupal\Core\Field\BaseFieldDefinition') {
           // It is a base field.
@@ -83,7 +83,8 @@ class FlippyPager {
       // todo: convert the SelectQuery into EntityQuery when D8 EntityQuery start
       // todo: to support nested conditions.
       //$language = new Language();
-      $query = db_select('node_field_data', 'nfd');
+      $connection = \Drupal::database();
+      $query = $connection->select('node_field_data', 'nfd');
       $query->fields('nfd', array('nid'))
         ->condition('nfd.type', $node->getType())
         ->condition('nfd.status', 1)
@@ -225,7 +226,7 @@ class FlippyPager {
       // but only if we actually found some matches
       if (count($node_ids) > 0) {
         // we also need titles to go with our node ids
-        $title_query = db_select('node_field_data', 'nfd')
+        $title_query = $connection->select('node_field_data', 'nfd')
           ->fields('nfd', array('title', 'nid'))
           ->condition('nfd.nid', $node_ids, 'IN')
           ->execute()
@@ -244,7 +245,7 @@ class FlippyPager {
         $random_nid = $random->execute()->fetchField();
 
         // find out the node title
-        $title = db_select('node_field_data', 'nfd')
+        $title = $connection->select('node_field_data', 'nfd')
           ->fields('nfd', array('title'))
           ->condition('nfd.nid', $random_nid, '=')
           ->execute()
