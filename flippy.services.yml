@@ -1,3 +1,5 @@
 services:
   flippy.pager:
     class: Drupal\flippy\FlippyPager
+    arguments:
+      - @entity_field.manager

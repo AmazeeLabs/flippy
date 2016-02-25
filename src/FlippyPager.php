@@ -7,10 +7,18 @@
 
 namespace Drupal\flippy;
 
+use Drupal\Core\Entity\EntityFieldManager;
+
 /**
  * Defines the flippy pager service.
  */
 class FlippyPager {
+
+  public $entityFieldManager;
+
+  public function __construct(EntityFieldManager $entityFieldManager) {
+    $this->entityFieldManager = $entityFieldManager;
+  }
 
   /**
    * Helper function: Query to get the list of flippy pagers.
@@ -21,7 +29,7 @@ class FlippyPager {
    * @return
    *   a list of flippy pagers
    */
-  public static function flippy_build_list($node) {
+  public function flippy_build_list($node) {
     // Get all the properties from the current node
 
     $master_list = &drupal_static(__FUNCTION__);
@@ -45,7 +53,7 @@ class FlippyPager {
       // Achieve the base field from a node type.
       $sort_options = array();
       // Get all the field from a node type.
-      $content_type_fields = \Drupal::entityTypeManager()->getDefinitions('node', $node->getType());
+      $content_type_fields = $this->entityFieldManager->getFieldDefinitions('node', $node->getType());
       foreach ($content_type_fields as $sort_field) {
         if (get_class($sort_field) == 'Drupal\Core\Field\BaseFieldDefinition') {
           // It is a base field.
