@@ -363,13 +363,13 @@ function flippy_node_view(array &$build, EntityInterface $node, EntityViewDispla
         if ($links['prev']['nid'] != FALSE) {
           $build['#attached']['html_head_link'][][] = array(
             'rel' => 'prev',
-            'href' => Url::fromRoute('entity.node.canonical', array('node' => $links['prev']['nid'])),
+            'href' => Url::fromRoute('entity.node.canonical', array('node' => $links['prev']['nid']))->toString(),
           );
         }
         if ($links['next']['nid'] != FALSE) {
           $build['#attached']['html_head_link'][][] = array(
             'rel' => 'next',
-            'href' => Url::fromRoute('entity.node.canonical', array('node' => $links['next']['nid'])),
+            'href' => Url::fromRoute('entity.node.canonical', array('node' => $links['next']['nid']))->toString(),
           );
         }
       }
