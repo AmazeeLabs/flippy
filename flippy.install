@@ -4,24 +4,3 @@
  * @file
  * Flippy install file.
  */
-
-/**
- * Converts flippy variable to config.
- *
- * @ingroup config_upgrade
- */
-function flippy_update_8000() {
-  // Find out all flippy variables in Drupal 7
-  $query = db_select('variable', 'v')
-    ->condition('name', db_like('flippy_' . '%', 'LIKE'))
-    ->fields('v', array('name'))
-    ->execute();
-
-  // Create the map between Drupal 7 and Drupal 8
-  $map = array();
-  foreach($query->fetchAssoc() as $result) {
-    $map[] = array($result['name'] => $result['name']);
-  }
-  // Update the variables
-  update_variables_to_config('flippy.settings', $map);
-}
