@@ -450,16 +450,18 @@ function template_preprocess_flippy(&$vars) {
     }
 
     if (isset($nav['prev']) && $nav['prev']['nid'] != FALSE) {
-      $url->setRouteParameter('node', $nav['prev']['nid']);
-      $vars['prev'] = Link::fromTextAndUrl($token_service->replace($prev_label, ['node' => Node::load($nav['prev']['nid'])]), $url);
+      $prev_url = Url::fromRoute('entity.node.canonical');
+      $prev_url->setRouteParameter('node', $nav['prev']['nid']);
+      $vars['prev'] = Link::fromTextAndUrl($token_service->replace($prev_label, ['node' => Node::load($nav['prev']['nid'])]), $prev_url);
     }
     elseif ($show_empty) {
       $vars['prev'] = t($prev_label);
     }
 
     if (isset($nav['next']) && $nav['next']['nid'] != FALSE) {
-      $url->setRouteParameter('node', $nav['next']['nid']);
-      $vars['next'] = Link::fromTextAndUrl($token_service->replace($next_label, ['node' => Node::load($nav['next']['nid'])]), $url);
+      $next_url = Url::fromRoute('entity.node.canonical');
+      $next_url->setRouteParameter('node', $nav['next']['nid']);
+      $vars['next'] = Link::fromTextAndUrl($token_service->replace($next_label, ['node' => Node::load($nav['next']['nid'])]), $next_url);
     }
     elseif ($show_empty) {
       $vars['next'] = t($next_label);
